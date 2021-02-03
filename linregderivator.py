@@ -12,7 +12,9 @@ import json
 import http.client
 from time import time
 import pandas as pd
+import numpy as np
 from datetime import datetime
+from sklearn.linear_model import LinearRegression
 
 CONSUMER_URL = 'iotplatform.caps.in.tum.de:443'
 DEV_JWT = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9' \
@@ -84,10 +86,14 @@ if len(sys.argv) == 5:
     retrievedData.index = retrievedData.t
 
     # Create the model from scratch
-    mod = sm.OLS(retrievedData['count'].astype(float), retrievedData['t'])
-    res = mod.fit(disp=False)
+    to_timestamp_converter = lambda t: (t - np.datetime64('1970-01-01T00:00:00Z')) / np.timedelta64(1, 's')
+    x = np.array([to_timestamp_converter(t) for t in retrievedData.index.values]).reshape((-1, 1))
+    print(x)
+    y = np.array(retrievedData['count'])
+
+    mod = LinearRegression().fit(x, y)
     # print(res.summary())
-    pickle.dump(res, open(modelFilepath, 'wb'))
+    pickle.dump(mod, open(modelFilepath, 'wb'))
 
 else:
     print("Not enough arguments. The call should be: python3 arimamodelderivator.py <sensor id> <model file name> <number of weeks|0> <batch size>")

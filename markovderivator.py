@@ -85,7 +85,7 @@ if len(sys.argv) == 5:
 
     # Create the model from scratch
     mod = mc.MarkovChain().from_data(retrievedData['count'])
-    print(mod.expected_matrix)
+    # print(mod.expected_matrix)
     pickle.dump(mod, open(modelFilepath, 'wb'))
 
 else:

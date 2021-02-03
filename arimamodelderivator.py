@@ -84,7 +84,8 @@ if len(sys.argv) == 5:
     retrievedData.index = retrievedData.t
 
     # Create the model from scratch
-    mod = sm.tsa.statespace.SARIMAX(retrievedData['count'].astype(float), order=(0, 1, 0), seasonal_order=(1,0,0,24), enforce_stationarity=False)
+    mod = sm.tsa.statespace.SARIMAX(retrievedData['count'].astype(float), order=(0, 0, 0),
+                                    seasonal_order=(1,0,1,24), enforce_stationarity=False)
     res = mod.fit(disp=False)
     # print(res.summary())
     pickle.dump(res, open(modelFilepath, 'wb'))

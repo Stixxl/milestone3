@@ -4,8 +4,7 @@
 # http://www.statsmodels.org/dev/statespace.html
 # http://www.statsmodels.org/dev/examples/notebooks/generated/statespace_sarimax_stata.html
 from scipy.stats import norm
-import keras
-import tensorflow
+import mchmm as mc
 import pickle
 import sys
 import os
@@ -13,7 +12,22 @@ import json
 import http.client
 from time import time
 import pandas as pd
+import numpy as np
 from datetime import datetime
+from sklearn.preprocessing import MinMaxScaler
+from keras.models import Sequential
+from keras.layers import LSTM, Dense
+import tensorflow
+
+
+def create_dataset(dataset, look_back=1):
+    dataX, dataY = [], []
+    for i in range(len(dataset) - look_back - 1):
+        a = dataset[i:(i + look_back), 0]
+        dataX.append(a)
+        dataY.append(dataset[i + look_back, 0])
+    return np.array(dataX), np.array(dataY)
+
 
 CONSUMER_URL = 'iotplatform.caps.in.tum.de:443'
 DEV_JWT = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9' \
@@ -84,10 +98,19 @@ if len(sys.argv) == 5:
     consumerConn.close()
     retrievedData.index = retrievedData.t
 
-    # Create the model from scratch
-    mod = mc.MarkovChain().from_data(retrievedData['count'])
-    print(mod.expected_matrix)
-    pickle.dump(mod, open(modelFilepath, 'wb'))
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    dataset = scaler.fit_transform(np.array(retrievedData['count'].astype(float)).reshape(-1, 1))
+    look_back = 20
+    trainX, trainY = create_dataset(dataset, look_back)
+    trainX = np.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
+
+    print('Creating new model.')
+    model = Sequential()
+    model.add(LSTM(4, input_shape=(1, look_back)))
+    model.add(Dense(1))
+    model.compile(loss='mean_squared_error', optimizer='adam')
+    model.fit(trainX, trainY, epochs=100, batch_size=1, verbose=2)
+    model.save(modelFilepath)
 
 else:
     print("Not enough arguments. The call should be: python3 arimamodelderivator.py <sensor id> <model file name> <number of weeks|0> <batch size>")
