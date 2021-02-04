@@ -9,21 +9,14 @@ import pickle
 import sys
 import os
 import json
-import http.client
+
 from time import time
 import pandas as pd
 from datetime import datetime
+import requests
 
-CONSUMER_URL = 'iotplatform.caps.in.tum.de:443'
-DEV_JWT = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9' \
-          '.eyJpYXQiOjE2MTIxMTg3NzgsImlzcyI6ImlvdHBsYXRmb3JtIiwic3ViIjoiMjVfNjMifQ.gvarGnX729L0Ea42QnWQVTAqlzzL3eCx' \
-          '-WxoOPlgwi8NBs0EBibDl9FHbFS_y0ZL89rEv9ApX9bOOJOfydes974COHwBE6Lq43KrhVxXMb5Pt3C5KaY_X' \
-          '-Uo6zDrDtSeCq25JBFTbxzF89COlBlFo_tKyWNvMJOZCREfC8twZFyX6BR9bWxvgmAZs3g0cqCDn_GnTWP_L_5ADDX4nJ5Qr0zWb_EX5nQ8'\
-          '3pCV2WLVpqX4t_zmvi0rcA5kK067cab9EP0cGQqdM6VTy9eM44jX4JI5I8WnZt7cF4TdNVcihkm4zVKkEqasT3C7V60HwhftSC0eg4VrUp' \
-          '2v76GTVXez2642_yf2q0kYuwYSyEXncTKgpQSV_3Z76rMRlNepuZ8dp-gXm32-SSJC6iJ-ZnFyvKWGRoT3KBGu9AJvM34F11zYPlqWM' \
-          'vg93wt9-iah1q_Pe3hIGYXWN52FPGcMgwlc1vFNDBDwrMkif7p85SdklMZeRAVvlc4sSWUu3V4-O7IWR7OhKYrDs5QfwhBHcKx79Spk' \
-          'qTVIvEX0pt0776XmC2Fnodt9BOrn937Y12zn3dQjPcpgZFkkLCGTHE8d7yFrHCE8BzDRPE2Pynvkkpi6-dBU_HCZmqqKSVDFj-iaAARxu1' \
-          'D_55rUXNafF-SYvLnQ9XDhqRclvftfy7-1TGUEVU8 '
+CONSUMER_URL = 'https://iotplatform.caps.in.tum.de'
+DEV_JWT = 'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE2MTI0NDk3NzQsImlzcyI6ImlvdHBsYXRmb3JtIiwic3ViIjoiMjVfNjMifQ.vgNjk3NN5xvDAKIvrZPClLg-wscqORVrgeB7cHYbzY4VUnPlYGILHWlPpY44w5A1GyyC_6vPWtQU1c9fAdnkbCOv9KnU2_dOUjB9InUzZRhVn8hGtT9K1oojszlO4gQfVa2hT8CiAClcYDTsNnBetqgb95-k6jepR8iEnd4EVQAvjDwDnI_-VD9cAZJW9kRLF-49zJrCX4vUPrNNQr9Qt2CD35HM0Dq1Gb272tDEz7lgTwe1U1xHx0VA9Fdjn6Hp0XSzePv4Le4z_-FivP1Dr1sFDf4U7jgrWbqUrE_oznl2Hlc9udGx_vFuSRXiiGb39DsBHDqBCeuMP4WkOKE7RQWyPx9UHvJgqWTC42tBPo0oc_KPfwgcE6YUXXYjX_ZMiblGqU0XPXa8mSkhKNxMEnMpoKmNNFjygQeLkuZ5eT6Dbc8S-KmrJ4BzKZUqg9zslzJIQcweLXsJpL9-y63NivdtT-zzR5PL3ZORc-Ok9DoZnFYvg7yzYx6PXydIWEMYpuTx1o0107C91K5Kf1Mli_Hv2YxQzulsAOmsff9CUSYfpxiRzTEsC7G3lHmRYTzi6k8LZRnFJKrJ_2l2PUUs2UYhyqezSQsfP_LmG4zg4iTsOQxb-GUYENeB7W5sssU3UJZVhvoAQWh7t8sjvtmQql2lx41eVc5lwM8RAHhGSvw'
 
 if len(sys.argv) == 5:
     sensorID = sys.argv[1]
@@ -44,15 +37,12 @@ if len(sys.argv) == 5:
         searchPath = searchPath + sQuery
         countPath = countPath + sQuery
 
-    # Get the data for the last week
-    consumerConn = http.client.HTTPSConnection(CONSUMER_URL)
-    consumerConn.connect()
+
 
     headers = {  "Content-Type": "application/x-www-form-urlencoded", "Authorization": "Bearer " + DEV_JWT }
-    consumerConn.request('GET', countPath, '', headers)
-    iotPlResp = consumerConn.getresponse()
-    rawCountData = iotPlResp.read()
-    respCountData = json.loads(rawCountData)
+    # Get the data for the last week
+    response = requests.get(CONSUMER_URL + countPath, headers=headers, verify=False)
+    respCountData = response.json()
     countLeft = int(respCountData["count"])
     begIndex = 0
 
@@ -60,11 +50,9 @@ if len(sys.argv) == 5:
         # Slicing our requests
         searchPath = searchPath + '&from=' + str(begIndex) + '&size=' + str(batchSize)
 
-        consumerConn.request('GET', searchPath, '', headers)
+        response = requests.get(CONSUMER_URL + searchPath, headers=headers, verify=False)
         # I: https://docs.python.org/3/library/http.client.html#httpresponse-objects
-        iotPlResp = consumerConn.getresponse()
-        rawData = iotPlResp.read()
-        respData = json.loads(rawData)
+        respData = response.json()
         observationsArray = respData["hits"]["hits"]
 
         for observation in observationsArray:
@@ -79,14 +67,13 @@ if len(sys.argv) == 5:
         begIndex = begIndex + batchSize
         countLeft = countLeft - batchSize
 
-    # print(retrievedData)
-    consumerConn.close()
+    print(retrievedData)
     retrievedData.index = retrievedData.t
 
     # Create the model from scratch
     mod = mc.MarkovChain().from_data(retrievedData['count'])
-    # print(mod.expected_matrix)
+    print(mod.expected_matrix)
     pickle.dump(mod, open(modelFilepath, 'wb'))
 
 else:
-    print("Not enough arguments. The call should be: python3 arimamodelderivator.py <sensor id> <model file name> <number of weeks|0> <batch size>")
+    print("Not enough arguments. The call should be: python3 markovderivator.py <sensor id> <model file name> <number of weeks|0> <batch size>")
