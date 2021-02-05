@@ -1,5 +1,7 @@
 var PythonShell = require('python-shell');
 
+const PythonPath = 'C:\\ProgramData\\Anaconda3\\envs\\tf_gpu'
+
 const SerialPort = require('serialport');
 const ConsoleReader = require('readline');
 const Mqtt = require('mqtt');
@@ -9,6 +11,8 @@ const kafka = require('kafka-node');
 
 const Readline = SerialPort.parsers.Readline;
 const parser = new Readline();
+
+var lastCountArray = new Array(45).fill(0);
 
 var first=true;
 
@@ -79,13 +83,22 @@ let timer = setInterval(function() {
 	var { PythonShell } = require('python-shell');
 
 	let options = {
-		mode: 'text'
+		mode: 'text',
+		pythonPath: PythonPath+'\\python.exe',
+		pythonOptions: ['-u'],
+		scriptPath: './',
+		//instead of fHorizon we use the current count of the board. or a random integer between 0 and 30.
+		args: [lastCountArray.toString(), 'mmcm.pickle', 'linreg.pickle']
 	};
 
-	PythonShell.run('./forcaster.py', options, function (err, results) {
+	PythonShell.run('./forecaster.py', options, function (err, results) {
 		if (err) throw err;
 		// results is an array consisting of messages collected during execution
-		console.log(results[0]);
+		//console.log(results[0]);
+		results.forEach(element => console.log(element))
+
+		estimate = results[results.length - 1]
+		port.write(estimate);
 	});
 }, 1000*10*1); // time is in milliseconds. 1000 ms * 60 sec * 2 min
 
@@ -96,14 +109,22 @@ function handleDeviceString(str){
   console.log('>>> '+str);
   if(str.startsWith("<<SEND:")){
 
-	var serialData = str.substring(7, str.length-3).split(":")
+	var serialData = str.substring(7, str.length-3).split(":");
 
-    var payload = {
+	lastCountArray = [serialData[1]].concat(lastCountArray);
+
+	while(lastCountArray.length > 45){
+		lastCountArray.pop()
+	}
+
+	var payload = {
 		username:"group4_2020_ws",
 		sensor_matthias: serialData[1],
 		device_id: "76",
 		timestamp: serialData[0]+"00"
     };
+
+
 
 	var options = {
 	  host: '131.159.35.132',
@@ -145,6 +166,10 @@ function processFile(fileName,port){
 	var fs = require('fs');
 	var buffer = fs.readFileSync(__dirname + "\\"+ fileName);
 	port.write(buffer.toString());
+}
+
+function randomInteger(min, max) {
+	return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
 process.on('uncaughtException', function (exception) {
