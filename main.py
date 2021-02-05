@@ -18,7 +18,7 @@ class MyHandler(http.server.BaseHTTPRequestHandler):
         elif self.path == "/linreg":
             src = open("models/linregmodel.fdml", "rb")
         elif self.path == "/rnn":
-            src = open("models/rnnmodel.fdml", "rb")
+            src = open("models/rnnmodel.zip", "rb")
         else:
             print(f"Model for path {self.path} does not exist.")
             self.send_response(404, f"Model for path {self.path} does not exist.")
